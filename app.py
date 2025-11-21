@@ -138,10 +138,21 @@ if page == "📊 Stock Analysis":
         if st.session_state.analyzed:
             st.markdown("---")
             st.subheader("Valuation Parameters")
-            
+
             wacc = st.number_input("WACC (%)", min_value=0.0, max_value=30.0, value=10.0, step=0.1) / 100
             growth_rate = st.number_input("Growth Rate (%)", min_value=-10.0, max_value=50.0, value=5.0, step=0.5) / 100
             terminal_growth = st.number_input("Terminal Growth (%)", min_value=0.0, max_value=10.0, value=2.5, step=0.1) / 100
+
+            st.markdown("---")
+            st.subheader("EPS 假設")
+            forecast_mode = st.radio("成長來源", ["分析師預估", "自訂成長率"], index=0)
+            custom_eps_growth = None
+            if forecast_mode == "自訂成長率":
+                custom_eps_growth = st.number_input("自訂 EPS 成長率 (%)", min_value=-20.0, max_value=60.0, value=10.0, step=0.5) / 100
+
+            eps_to_fcf_ratio = st.number_input("EPS → FCF 比率", min_value=0.0, max_value=5.0, value=1.0, step=0.05)
+            net_margin_assumption = st.number_input("或假設淨利率/現金轉化率", min_value=0.0, max_value=1.0, value=0.0, step=0.01)
+            target_pe = st.number_input("均值回歸目標 P/E", min_value=5.0, max_value=40.0, value=15.0, step=0.5)
     
     # Main content
     if st.session_state.analyzed:
@@ -166,11 +177,29 @@ if page == "📊 Stock Analysis":
             momentum = data_fetcher.calculate_momentum_metrics(hist_data)
             if momentum:
                 ui_components.render_momentum_metrics(momentum)
-            
+
             st.markdown("---")
-            
+
+            forecast_data = data_fetcher.forecast_eps(
+                active_ticker,
+                years=5,
+                custom_growth=custom_eps_growth if forecast_mode == "自訂成長率" else None
+            )
+            eps_to_fcf_input = eps_to_fcf_ratio if eps_to_fcf_ratio > 0 else None
+            net_margin_input = net_margin_assumption if net_margin_assumption > 0 else None
+
             # Calculate all valuations
-            valuations = data_fetcher.calculate_all_valuations(info, wacc, growth_rate, terminal_growth)
+            valuations = data_fetcher.calculate_all_valuations(
+                active_ticker,
+                info,
+                wacc,
+                growth_rate,
+                terminal_growth,
+                eps_forecast=forecast_data.get('forecast'),
+                eps_to_fcf_ratio=eps_to_fcf_input,
+                net_margin=net_margin_input,
+                target_pe=target_pe
+            )
             
             # Calculate AI score
             pe_ratio = info.get('trailingPE')
@@ -238,11 +267,23 @@ if page == "📊 Stock Analysis":
 
                 # Mean Reversion (Fair PE)
                 display_metric(c5, "Mean Reversion (Fair PE)", valuations.get('mr_value'), current_price)
-                
+
+                if forecast_data.get('forecast'):
+                    st.markdown("#### 預估 EPS 與目標價")
+                    forecast_df = pd.DataFrame(forecast_data['forecast'])
+                    forecast_df.columns = ['Year', 'EPS Forecast']
+                    forecast_df['Target Price (P/E)'] = forecast_df['EPS Forecast'] * target_pe
+                    st.dataframe(
+                        forecast_df.style.format({'EPS Forecast': '{:.2f}', 'Target Price (P/E)': '{:.2f}'}),
+                        use_container_width=True
+                    )
+                else:
+                    st.info("無法生成 EPS 預估，已使用 trailing EPS 進行估值。")
+
                 # Analyst target prices
                 st.markdown("---")
                 st.markdown("#### 📊 分析師目標價 (Analyst Consensus)")
-                
+
                 targets = data_fetcher.get_analyst_targets(info)
                 
                 if targets['target_mean']:
