@@ -50,13 +50,24 @@ def get_peer_metrics(ticker_symbol):
         ticker = yf.Ticker(ticker_symbol)
         info = ticker.info
         
+        # Calculate PEG if not available
+        peg_ratio = info.get('pegRatio')
+        if not peg_ratio or peg_ratio == 0:
+            # Try to calculate PEG manually
+            pe_ratio = info.get('trailingPE') or info.get('forwardPE')
+            earnings_growth = info.get('earningsGrowth')
+            
+            if pe_ratio and earnings_growth and earnings_growth > 0:
+                # PEG = P/E / (Earnings Growth * 100)
+                peg_ratio = pe_ratio / (earnings_growth * 100)
+        
         return {
             'ticker': ticker_symbol,
             'name': info.get('shortName', ticker_symbol),
             'market_cap': info.get('marketCap'),
             'pe_ratio': info.get('trailingPE'),
             'forward_pe': info.get('forwardPE'),
-            'peg_ratio': info.get('pegRatio'),
+            'peg_ratio': peg_ratio,
             'ev_ebitda': info.get('enterpriseToEbitda'),
             'price_to_book': info.get('priceToBook'),
             'price_to_sales': info.get('priceToSalesTrailing12Months'),
