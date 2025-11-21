@@ -4,6 +4,9 @@ __pycache__/
 .DS_Store
 .env
 
+# Streamlit secrets (contains API keys)
+.streamlit/secrets.toml
+
 # Watchlist data (optional - remove this line if you want to sync watchlist)
 watchlist.json
 
