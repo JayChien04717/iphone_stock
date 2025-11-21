@@ -458,11 +458,29 @@ if st.session_state.analyzed:
                         yaxis_title="Price (USD)",
                         xaxis_rangeslider_visible=False,
                         height=600,
-                        # Removed template="plotly_white" for dark mode support
-                        hovermode="x unified"
+                        hovermode="x unified",
+                        # Enable touch interactions for mobile
+                        dragmode='pan',  # Default to pan mode (better for mobile)
+                        # Configure modebar for mobile
+                        modebar=dict(
+                            orientation='v',  # Vertical toolbar
+                            bgcolor='rgba(0,0,0,0.5)',
+                            color='white',
+                            activecolor='lightblue'
+                        )
                     )
                     
-                    st.plotly_chart(fig, use_container_width=True)
+                    # Configure for mobile-friendly interactions
+                    config = {
+                        'displayModeBar': True,  # Show toolbar
+                        'displaylogo': False,  # Hide Plotly logo
+                        'modeBarButtonsToRemove': ['lasso2d', 'select2d'],  # Remove unused buttons
+                        'scrollZoom': True,  # Enable scroll/pinch zoom
+                        'doubleClick': 'reset',  # Double tap to reset
+                        'responsive': True  # Responsive sizing
+                    }
+                    
+                    st.plotly_chart(fig, use_container_width=True, config=config)
                 else:
                     st.warning("No historical data available.")
 
