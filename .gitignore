@@ -1,0 +1,17 @@
+# Deployment files
+*.pyc
+__pycache__/
+.DS_Store
+.env
+
+# Watchlist data (optional - remove this line if you want to sync watchlist)
+watchlist.json
+
+# IDE
+.vscode/
+.idea/
+
+# Python
+*.egg-info/
+dist/
+build/
