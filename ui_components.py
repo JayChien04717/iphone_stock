@@ -82,9 +82,15 @@ def render_ai_score(ai_score, current_price):
     st.markdown("### 🤖 AI 綜合評分")
 
     # Overall score card
-    score = ai_score['total_score']  # corrected key
-    rating = ai_score['rating']
-    recommendation = ai_score['recommendation']
+    score = ai_score.get('overall_score', ai_score.get('total_score'))
+
+    # Some saved or legacy payloads may only contain one of the keys. Fallback
+    # to 0 so the UI still renders instead of raising a KeyError.
+    if score is None:
+        score = 0
+
+    rating = ai_score.get('rating', "N/A")
+    recommendation = ai_score.get('recommendation', "")
     breakdown = ai_score.get('breakdown', {})  # ensure breakdown dict exists
 
     # Color based on score
@@ -110,26 +116,31 @@ def render_ai_score(ai_score, current_price):
         col1, col2 = st.columns(2)
         with col1:
             st.markdown("#### Valuation")
-            st.progress(breakdown['valuation'] / 25)
-            st.caption(f"{breakdown['valuation']:.1f} / 25")
+            valuation_score = breakdown.get('valuation', 0)
+            st.progress(valuation_score / 25)
+            st.caption(f"{valuation_score:.1f} / 25")
         with col2:
             st.markdown("#### Financial Health")
-            st.progress(breakdown.get('financial_health', breakdown.get('financial', 0)) / 20)
-            st.caption(f"{breakdown.get('financial_health', breakdown.get('financial', 0)):.1f} / 20")
+            financial_score = breakdown.get('financial_health', breakdown.get('financial', 0))
+            st.progress(financial_score / 20)
+            st.caption(f"{financial_score:.1f} / 20")
         col3, col4 = st.columns(2)
         with col3:
             st.markdown("#### Growth")
-            st.progress(breakdown['growth'] / 20)
-            st.caption(f"{breakdown['growth']:.1f} / 20")
+            growth_score = breakdown.get('growth', 0)
+            st.progress(growth_score / 20)
+            st.caption(f"{growth_score:.1f} / 20")
         with col4:
             st.markdown("#### Momentum")
-            st.progress(breakdown['momentum'] / 20)
-            st.caption(f"{breakdown['momentum']:.1f} / 20")
+            momentum_score = breakdown.get('momentum', 0)
+            st.progress(momentum_score / 20)
+            st.caption(f"{momentum_score:.1f} / 20")
         col5, col6 = st.columns(2)
         with col5:
             st.markdown("#### Risk")
-            st.progress(breakdown['risk'] / 15)
-            st.caption(f"{breakdown['risk']:.1f} / 15")
+            risk_score = breakdown.get('risk', 0)
+            st.progress(risk_score / 15)
+            st.caption(f"{risk_score:.1f} / 15")
 
     # Insights and risks
     st.markdown("---")
