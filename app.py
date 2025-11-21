@@ -173,12 +173,15 @@ if page == "📊 Stock Analysis":
             valuations = data_fetcher.calculate_all_valuations(info, wacc, growth_rate, terminal_growth)
             
             # Calculate AI score
+            pe_ratio = info.get('trailingPE')
             ai_score = ai_scoring.calculate_overall_score(
-                info=info,
                 current_price=current_price,
                 dcf_value=valuations['dcf_value'],
                 peg_ratio=valuations['peg_ratio'],
                 ev_ebitda=valuations['ev_ebitda'],
+                pe_ratio=pe_ratio,
+                info=info,
+                ticker=active_ticker,
                 momentum=momentum
             )
             
@@ -204,30 +207,37 @@ if page == "📊 Stock Analysis":
                 c1, c2 = st.columns(2)
                 c3, c4 = st.columns(2)
                 c5, c6 = st.columns(2)
-                
+
+                # Helper to display metric with N/A handling
                 def display_metric(col, label, value, current):
-                    if value:
+                    if value is not None:
                         delta = ((value - current) / current) * 100
                         col.metric(label, f"${value:.2f}", f"{delta:.1f}%")
                     else:
                         col.metric(label, "N/A")
-                
-                display_metric(c1, "DCF Fair Value", valuations['dcf_value'], current_price)
-                
-                if valuations['peg_ratio']:
+
+                # DCF Fair Value
+                display_metric(c1, "DCF Fair Value", valuations.get('dcf_value'), current_price)
+
+                # PEG Ratio
+                if valuations.get('peg_ratio') is not None:
                     status = "Undervalued" if valuations['peg_ratio'] < 1 else "Overvalued"
                     c2.metric("PEG Ratio", f"{valuations['peg_ratio']:.2f}", status, delta_color="inverse")
                 else:
                     c2.metric("PEG Ratio", "N/A")
-                
-                if valuations['ev_ebitda']:
+
+                # EV/EBITDA
+                if valuations.get('ev_ebitda') is not None:
                     status = "Good" if valuations['ev_ebitda'] < 10 else "High"
                     c3.metric("EV/EBITDA", f"{valuations['ev_ebitda']:.2f}", status, delta_color="inverse")
                 else:
                     c3.metric("EV/EBITDA", "N/A")
-                
-                display_metric(c4, "Peter Lynch Value", valuations['lynch_value'], current_price)
-                display_metric(c5, "Mean Reversion (Fair PE)", valuations['mr_value'], current_price)
+
+                # Peter Lynch Value
+                display_metric(c4, "Peter Lynch Value", valuations.get('lynch_value'), current_price)
+
+                # Mean Reversion (Fair PE)
+                display_metric(c5, "Mean Reversion (Fair PE)", valuations.get('mr_value'), current_price)
                 
                 # Analyst target prices
                 st.markdown("---")
@@ -304,6 +314,8 @@ if page == "📊 Stock Analysis":
                 ticker=active_ticker,
                 name=info.get('shortName', active_ticker),
                 current_price=current_price,
+                sector=info.get('sector'),
+                industry=info.get('industry'),
                 wacc=wacc,
                 dcf_value=valuations['dcf_value'],
                 peg_ratio=valuations['peg_ratio'],
