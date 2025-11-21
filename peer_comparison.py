@@ -9,9 +9,18 @@ import numpy as np
 def get_industry_peers(ticker_symbol, info, max_peers=10):
     """
     Get industry peer companies
-    Note: yfinance doesn't provide a direct API for peers, so we'll use the sector/industry info
-    In a production app, you might use a dedicated API for this
+    First tries Finnhub API, then falls back to hardcoded list
     """
+    # Try to get peers from Finnhub API first
+    try:
+        from api_provider import api_provider
+        finnhub_peers = api_provider.get_peers(ticker_symbol)
+        if finnhub_peers:
+            return finnhub_peers[:max_peers]
+    except Exception as e:
+        print(f"Finnhub API not available, using fallback: {e}")
+    
+    # Fallback to hardcoded peer map
     sector = info.get('sector', '')
     industry = info.get('industry', '')
     
@@ -73,8 +82,10 @@ def get_peer_metrics(ticker_symbol):
             'price_to_sales': info.get('priceToSalesTrailing12Months'),
             'roe': info.get('returnOnEquity'),
             'profit_margin': info.get('profitMargins'),
-            'revenue_growth': info.get('revenueGrowth'),
+            'revenue_growth': info.get('revenueGrowth'),  # YOY (annual)
+            'revenue_growth_quarterly': info.get('revenueQuarterlyGrowth'),  # QOQ (quarterly)
             'earnings_growth': info.get('earningsGrowth'),
+            'earnings_growth_quarterly': info.get('earningsQuarterlyGrowth'),
             'debt_to_equity': info.get('debtToEquity'),
             'current_ratio': info.get('currentRatio'),
             'beta': info.get('beta'),
