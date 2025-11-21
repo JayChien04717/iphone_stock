@@ -83,11 +83,20 @@ def render_ai_score(ai_score, current_price):
 
     ai_score = ai_score or {}
 
+    def _safe_points(value, maximum):
+        """Coerce score-like values to a bounded float to keep UI stable."""
+        try:
+            num = float(value)
+        except (TypeError, ValueError):
+            return 0.0
+
+        return max(0.0, min(num, maximum))
+
     # Overall score card
-    score = ai_score.get('overall_score') or ai_score.get('total_score') or 0
+    score = _safe_points(ai_score.get('overall_score') or ai_score.get('total_score'), 100)
     rating = ai_score.get('rating', "")
     recommendation = ai_score.get('recommendation', "")
-    
+
     # Color based on score
     if score >= 80:
         score_color = "#00C853"  # Green
@@ -108,11 +117,11 @@ def render_ai_score(ai_score, current_price):
     # Score breakdown
     st.markdown("#### 📊 評分細節")
     breakdown = ai_score.get('breakdown', {})
-    valuation_score = breakdown.get('valuation', 0)
-    financial_health_score = breakdown.get('financial_health', 0)
-    growth_score = breakdown.get('growth', 0)
-    momentum_score = breakdown.get('momentum', 0)
-    risk_score = breakdown.get('risk', 0)
+    valuation_score = _safe_points(breakdown.get('valuation'), 25)
+    financial_health_score = _safe_points(breakdown.get('financial_health'), 20)
+    growth_score = _safe_points(breakdown.get('growth'), 20)
+    momentum_score = _safe_points(breakdown.get('momentum'), 20)
+    risk_score = _safe_points(breakdown.get('risk'), 15)
     
     col1, col2 = st.columns(2)
     
@@ -141,8 +150,10 @@ def render_ai_score(ai_score, current_price):
     # Insights and risks
     st.markdown("---")
     insight_col1, insight_col2 = st.columns(2)
-    
+
     key_insights = ai_score.get('key_insights') or ai_score.get('insights', [])
+    if isinstance(key_insights, str):
+        key_insights = [key_insights]
 
     with insight_col1:
         st.markdown("#### ✅ 關鍵優勢")
@@ -153,6 +164,8 @@ def render_ai_score(ai_score, current_price):
             st.markdown("- 無明顯優勢")
 
     risk_factors = ai_score.get('risk_factors') or ["無重大風險"]
+    if isinstance(risk_factors, str):
+        risk_factors = [risk_factors]
 
     with insight_col2:
         st.markdown("#### ⚠️ 風險因素")
