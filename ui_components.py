@@ -80,11 +80,13 @@ def render_momentum_metrics(momentum):
 def render_ai_score(ai_score, current_price):
     """Render AI comprehensive score section"""
     st.markdown("### 🤖 AI 綜合評分")
-    
+
+    ai_score = ai_score or {}
+
     # Overall score card
-    score = ai_score['overall_score']
-    rating = ai_score['rating']
-    recommendation = ai_score['recommendation']
+    score = ai_score.get('overall_score') or ai_score.get('total_score') or 0
+    rating = ai_score.get('rating', "")
+    recommendation = ai_score.get('recommendation', "")
     
     # Color based on score
     if score >= 80:
@@ -105,47 +107,56 @@ def render_ai_score(ai_score, current_price):
     
     # Score breakdown
     st.markdown("#### 📊 評分細節")
-    breakdown = ai_score['breakdown']
+    breakdown = ai_score.get('breakdown', {})
+    valuation_score = breakdown.get('valuation', 0)
+    financial_health_score = breakdown.get('financial_health', 0)
+    growth_score = breakdown.get('growth', 0)
+    momentum_score = breakdown.get('momentum', 0)
+    risk_score = breakdown.get('risk', 0)
     
     col1, col2 = st.columns(2)
     
     with col1:
         st.markdown("**估值吸引力** (25分)")
-        st.progress(breakdown['valuation'] / 25)
-        st.caption(f"{breakdown['valuation']:.1f} / 25")
-        
+        st.progress(valuation_score / 25)
+        st.caption(f"{valuation_score:.1f} / 25")
+
         st.markdown("**財務健康** (20分)")
-        st.progress(breakdown['financial_health'] / 20)
-        st.caption(f"{breakdown['financial_health']:.1f} / 20")
-        
+        st.progress(financial_health_score / 20)
+        st.caption(f"{financial_health_score:.1f} / 20")
+
         st.markdown("**成長潛力** (20分)")
-        st.progress(breakdown['growth'] / 20)
-        st.caption(f"{breakdown['growth']:.1f} / 20")
-    
+        st.progress(growth_score / 20)
+        st.caption(f"{growth_score:.1f} / 20")
+
     with col2:
         st.markdown("**動能與市場情緒** (20分)")
-        st.progress(breakdown['momentum'] / 20)
-        st.caption(f"{breakdown['momentum']:.1f} / 20")
-        
+        st.progress(momentum_score / 20)
+        st.caption(f"{momentum_score:.1f} / 20")
+
         st.markdown("**風險評估** (15分)")
-        st.progress(breakdown['risk'] / 15)
-        st.caption(f"{breakdown['risk']:.1f} / 15")
+        st.progress(risk_score / 15)
+        st.caption(f"{risk_score:.1f} / 15")
     
     # Insights and risks
     st.markdown("---")
     insight_col1, insight_col2 = st.columns(2)
     
+    key_insights = ai_score.get('key_insights') or ai_score.get('insights', [])
+
     with insight_col1:
         st.markdown("#### ✅ 關鍵優勢")
-        if ai_score['key_insights']:
-            for insight in ai_score['key_insights']:
+        if key_insights:
+            for insight in key_insights:
                 st.markdown(f"- {insight}")
         else:
             st.markdown("- 無明顯優勢")
-    
+
+    risk_factors = ai_score.get('risk_factors') or ["無重大風險"]
+
     with insight_col2:
         st.markdown("#### ⚠️ 風險因素")
-        for risk in ai_score['risk_factors']:
+        for risk in risk_factors:
             st.markdown(f"- {risk}")
 
 
