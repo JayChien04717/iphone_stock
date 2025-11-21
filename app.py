@@ -313,6 +313,44 @@ if st.session_state.analyzed:
                     
                 display_metric(c4, "Peter Lynch Value", lynch_value, current_price)
                 display_metric(c5, "Mean Reversion (Fair PE)", mr_value, current_price)
+                
+                # Analyst Target Price Section
+                st.markdown("---")
+                st.markdown("#### 📊 分析師目標價 (Analyst Consensus)")
+                
+                target_mean = info.get('targetMeanPrice')
+                target_high = info.get('targetHighPrice')
+                target_low = info.get('targetLowPrice')
+                num_analysts = info.get('numberOfAnalystOpinions')
+                recommendation = info.get('recommendationKey')
+                
+                if target_mean:
+                    analyst_col1, analyst_col2, analyst_col3 = st.columns(3)
+                    
+                    with analyst_col1:
+                        delta = ((target_mean - current_price) / current_price) * 100
+                        st.metric("平均目標價 (1Y Target)", f"${target_mean:.2f}", f"{delta:+.1f}%")
+                    
+                    with analyst_col2:
+                        if target_high and target_low:
+                            st.metric("目標價範圍", f"${target_low:.2f} - ${target_high:.2f}")
+                        else:
+                            st.metric("目標價範圍", "N/A")
+                    
+                    with analyst_col3:
+                        if num_analysts:
+                            rec_text = {
+                                'strong_buy': '🟢 強力買入',
+                                'buy': '🟢 買入',
+                                'hold': '🟡 持有',
+                                'sell': '🔴 賣出',
+                                'strong_sell': '🔴 強力賣出'
+                            }.get(recommendation, recommendation or 'N/A')
+                            st.metric(f"分析師建議 ({num_analysts}位)", rec_text)
+                        else:
+                            st.metric("分析師建議", recommendation or "N/A")
+                else:
+                    st.info("此股票暫無分析師目標價數據")
 
                 # --- Valuation Comparison Chart ---
                 st.markdown("### Valuation Comparison")
