@@ -81,28 +81,11 @@ def render_ai_score(ai_score, current_price):
     """Render AI comprehensive score section"""
     st.markdown("### 🤖 AI 綜合評分")
 
-    ai_score = ai_score or {}
-
-    def _safe_points(value, maximum):
-        """Coerce score-like values to a bounded float to keep UI stable."""
-        try:
-            num = float(value)
-        except (TypeError, ValueError):
-            return 0.0
-
-        return max(0.0, min(num, maximum))
-
     # Overall score card
-    score = _safe_points(
-        ai_score.get('overall_score')
-        or ai_score.get('over_all_score')
-        or ai_score.get('total_score')
-        or ai_score.get('overall')
-        or ai_score.get('over_all'),
-        100,
-    )
-    rating = ai_score.get('rating', "")
-    recommendation = ai_score.get('recommendation', "")
+    score = ai_score['total_score']  # corrected key
+    rating = ai_score['rating']
+    recommendation = ai_score['recommendation']
+    breakdown = ai_score.get('breakdown', {})  # ensure breakdown dict exists
 
     # Color based on score
     if score >= 80:
@@ -111,72 +94,56 @@ def render_ai_score(ai_score, current_price):
         score_color = "#FFC107"  # Yellow
     else:
         score_color = "#F44336"  # Red
-    
+
+    # Display score card
     st.markdown(f"""
-    <div style="background: linear-gradient(135deg, {score_color}22 0%, {score_color}11 100%); 
-                padding: 2rem; border-radius: 15px; border-left: 5px solid {score_color}; margin-bottom: 1.5rem;">
-        <h1 style="margin: 0; color: {score_color}; font-size: 3rem;">{score}/100</h1>
-        <p style="margin: 0.5rem 0; font-size: 1.5rem;">{rating}</p>
-        <p style="margin: 0; font-size: 1.2rem; opacity: 0.8;">{recommendation}</p>
+    <div style=\"background: linear-gradient(135deg, {score_color}22 0%, {score_color}11 100%); 
+        padding: 1rem; border-radius: 0.5rem; text-align: center; color: #fff;\">
+        <h2 style=\"margin: 0;\">{score:.1f} / 100</h2>
+        <p style=\"margin: 0; font-size: 1.1rem;\">{rating}</p>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Score breakdown
-    st.markdown("#### 📊 評分細節")
-    breakdown = ai_score.get('breakdown', {})
-    valuation_score = _safe_points(breakdown.get('valuation'), 25)
-    financial_health_score = _safe_points(breakdown.get('financial_health'), 20)
-    growth_score = _safe_points(breakdown.get('growth'), 20)
-    momentum_score = _safe_points(breakdown.get('momentum'), 20)
-    risk_score = _safe_points(breakdown.get('risk'), 15)
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("**估值吸引力** (25分)")
-        st.progress(valuation_score / 25)
-        st.caption(f"{valuation_score:.1f} / 25")
 
-        st.markdown("**財務健康** (20分)")
-        st.progress(financial_health_score / 20)
-        st.caption(f"{financial_health_score:.1f} / 20")
+    # Breakdown bars (valuation, financial, growth, momentum, risk)
+    if breakdown:
+        st.markdown("---")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("#### Valuation")
+            st.progress(breakdown['valuation'] / 25)
+            st.caption(f"{breakdown['valuation']:.1f} / 25")
+        with col2:
+            st.markdown("#### Financial Health")
+            st.progress(breakdown.get('financial_health', breakdown.get('financial', 0)) / 20)
+            st.caption(f"{breakdown.get('financial_health', breakdown.get('financial', 0)):.1f} / 20")
+        col3, col4 = st.columns(2)
+        with col3:
+            st.markdown("#### Growth")
+            st.progress(breakdown['growth'] / 20)
+            st.caption(f"{breakdown['growth']:.1f} / 20")
+        with col4:
+            st.markdown("#### Momentum")
+            st.progress(breakdown['momentum'] / 20)
+            st.caption(f"{breakdown['momentum']:.1f} / 20")
+        col5, col6 = st.columns(2)
+        with col5:
+            st.markdown("#### Risk")
+            st.progress(breakdown['risk'] / 15)
+            st.caption(f"{breakdown['risk']:.1f} / 15")
 
-        st.markdown("**成長潛力** (20分)")
-        st.progress(growth_score / 20)
-        st.caption(f"{growth_score:.1f} / 20")
-
-    with col2:
-        st.markdown("**動能與市場情緒** (20分)")
-        st.progress(momentum_score / 20)
-        st.caption(f"{momentum_score:.1f} / 20")
-
-        st.markdown("**風險評估** (15分)")
-        st.progress(risk_score / 15)
-        st.caption(f"{risk_score:.1f} / 15")
-    
     # Insights and risks
     st.markdown("---")
     insight_col1, insight_col2 = st.columns(2)
-
-    key_insights = ai_score.get('key_insights') or ai_score.get('insights', [])
-    if isinstance(key_insights, str):
-        key_insights = [key_insights]
-
     with insight_col1:
         st.markdown("#### ✅ 關鍵優勢")
-        if key_insights:
-            for insight in key_insights:
+        if ai_score.get('insights'):
+            for insight in ai_score['insights']:
                 st.markdown(f"- {insight}")
         else:
             st.markdown("- 無明顯優勢")
-
-    risk_factors = ai_score.get('risk_factors') or ["無重大風險"]
-    if isinstance(risk_factors, str):
-        risk_factors = [risk_factors]
-
     with insight_col2:
         st.markdown("#### ⚠️ 風險因素")
-        for risk in risk_factors:
+        for risk in ai_score.get('risk_factors', []):
             st.markdown(f"- {risk}")
 
 

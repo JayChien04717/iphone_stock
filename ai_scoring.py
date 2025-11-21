@@ -317,12 +317,9 @@ def calculate_overall_score(current_price, dcf_value, peg_ratio, ev_ebitda, pe_r
     
     # Provide both legacy and UI-friendly keys so the rendering layer can
     # consume ``overall_score``/``key_insights`` while existing callers that
-    # reference ``total_score``/``insights`` continue to work. Include the
-    # historical typo ``over_all_score`` as an alias to eliminate KeyErrors
-    # from persisted or cached payloads.
+    # reference ``total_score``/``insights`` continue to work.
     return {
         'overall_score': total,
-        'over_all_score': total,
         'total_score': total,
         'rating': rating,
         'recommendation': recommendation,
