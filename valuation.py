@@ -2,145 +2,139 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 
-def get_financials(ticker_symbol):
-    """
-    Fetches financial data for a given ticker.
-    """
-    try:
-        ticker = yf.Ticker(ticker_symbol)
-        info = ticker.info
-        # Check if data is available
-        if 'symbol' not in info:
-             return None, "Invalid Ticker or No Data"
-        return ticker, info
-    except Exception as e:
-        return None, str(e)
 
-def calculate_dcf(ticker, info, assumptions):
+def calculate_dcf(
+    free_cash_flow,
+    shares_outstanding,
+    discount_rate,
+    growth_rate,
+    terminal_growth_rate,
+    eps_forecast=None,
+    eps_to_fcf_ratio=None,
+    net_margin=None
+):
     """
     Calculates Intrinsic Value using Discounted Cash Flow (DCF).
-    Assumptions dict should contain: 'growth_rate', 'discount_rate', 'terminal_growth_rate'
+
+    Parameters
+    ----------
+    free_cash_flow: float
+        Latest free cash flow (total, not per share). If missing, EPS forecast can be
+        converted to FCF using eps_to_fcf_ratio or net_margin.
+    shares_outstanding: float
+        Share count for per-share calculations.
+    discount_rate: float
+        Discount rate (as decimal, e.g., 0.1 for 10%).
+    growth_rate: float
+        Growth rate for FCF when using raw FCF input (decimal).
+    terminal_growth_rate: float
+        Terminal growth rate (decimal).
+    eps_forecast: list[float]
+        Forecast EPS per share sequence for the projection horizon.
+    eps_to_fcf_ratio: float
+        Ratio to convert EPS per share to FCF per share.
+    net_margin: float
+        Alternative ratio to approximate FCF per share from EPS (used if eps_to_fcf_ratio is missing).
     """
     try:
-        free_cash_flow = info.get('freeCashflow')
-        if free_cash_flow is None:
-            # Try to calculate from cash flow statement if direct field is missing
-            cashflow = ticker.cashflow
-            if cashflow is not None and not cashflow.empty and 'Free Cash Flow' in cashflow.index:
-                 free_cash_flow = cashflow.loc['Free Cash Flow'].iloc[0]
-            else:
-                return None # Cannot calculate without FCF
-
-        growth_rate = assumptions['growth_rate'] / 100
-        discount_rate = assumptions['discount_rate'] / 100
-        terminal_growth_rate = assumptions['terminal_growth_rate'] / 100
-        
-        # Project FCF for next 5 years
-        future_fcf = []
-        for i in range(1, 6):
-            fcf = free_cash_flow * ((1 + growth_rate) ** i)
-            future_fcf.append(fcf)
-            
-        # Calculate Terminal Value
-        terminal_value = (future_fcf[-1] * (1 + terminal_growth_rate)) / (discount_rate - terminal_growth_rate)
-        
-        # Discount Cash Flows to Present Value
-        dcf_value = 0
-        for i in range(0, 5):
-            dcf_value += future_fcf[i] / ((1 + discount_rate) ** (i + 1))
-            
-        # Discount Terminal Value
-        present_terminal_value = terminal_value / ((1 + discount_rate) ** 5)
-        
-        # Total Equity Value
-        total_equity_value = dcf_value + present_terminal_value
-        
-        # Add Cash and Subtract Debt (Net Debt) - Simplified
-        # Ideally: Enterprise Value -> Equity Value
-        # Here we assume FCF is to Firm, so we need to adjust for debt/cash if we want Equity Value per share
-        # BUT, yfinance 'freeCashflow' is often FCF to Equity or Firm? It's ambiguous. 
-        # Standard DCF usually uses FCFF. Let's assume FCFF and adjust.
-        
-        total_cash = info.get('totalCash', 0)
-        total_debt = info.get('totalDebt', 0)
-        
-        equity_value = total_equity_value + total_cash - total_debt
-        
-        shares_outstanding = info.get('sharesOutstanding')
         if not shares_outstanding:
             return None
 
+        conversion_ratio = eps_to_fcf_ratio if eps_to_fcf_ratio is not None else net_margin
+
+        if eps_forecast and conversion_ratio:
+            projected_fcf = [eps * shares_outstanding * conversion_ratio for eps in eps_forecast]
+        elif free_cash_flow is not None:
+            projected_fcf = [free_cash_flow * ((1 + growth_rate) ** (i + 1)) for i in range(5)]
+        else:
+            return None
+
+        if not projected_fcf:
+            return None
+
+        # Discount projected cash flows
+        discounted = [fcf / ((1 + discount_rate) ** (i + 1)) for i, fcf in enumerate(projected_fcf)]
+        dcf_value = sum(discounted)
+
+        # Terminal value using last projected FCF
+        last_fcf = projected_fcf[-1]
+        if discount_rate <= terminal_growth_rate:
+            return None
+        terminal_value = (last_fcf * (1 + terminal_growth_rate)) / (discount_rate - terminal_growth_rate)
+        present_terminal_value = terminal_value / ((1 + discount_rate) ** len(projected_fcf))
+
+        equity_value = dcf_value + present_terminal_value
         fair_value = equity_value / shares_outstanding
         return fair_value
     except Exception as e:
         print(f"DCF Error: {e}")
         return None
 
-def calculate_peg_valuation(info):
-    """
-    Returns the PEG ratio and an implied valuation based on PEG=1.
-    """
-    # Try to get PEG from info, yfinance often uses 'trailingPegRatio' now
-    peg_ratio = info.get('pegRatio')
-    if peg_ratio is None:
-        peg_ratio = info.get('trailingPegRatio')
-        
-    # Fallback: Calculate manually if missing
-    # PEG = (P/E) / (Earnings Growth Rate * 100)
-    if peg_ratio is None:
-        pe = info.get('trailingPE')
-        growth = info.get('earningsGrowth') # This is usually a decimal (e.g. 0.15 for 15%)
-        if pe and growth and growth > 0:
-            peg_ratio = pe / (growth * 100)
-    
-    current_price = info.get('currentPrice')
-    
-    if peg_ratio and current_price:
-        # Implied Fair Value if PEG were 1.0 (Fairly Valued)
-        # Price = PEG * Earnings * Growth
-        # If PEG < 1, Undervalued. 
-        # We can't strictly calculate a 'price' from PEG without knowing the 'fair' PEG.
-        # Usually PEG < 1 is good.
-        return peg_ratio
+
+def derive_growth_from_forecast(forecast_series, trailing_eps=None):
+    """Derive CAGR from a forecast EPS series using trailing EPS as the base."""
+    if not forecast_series or trailing_eps is None or trailing_eps <= 0:
+        return None
+
+    eps_values = [entry['eps'] if isinstance(entry, dict) else entry for entry in forecast_series]
+    if not eps_values:
+        return None
+
+    end_eps = eps_values[-1]
+    periods = len(eps_values)
+    if end_eps <= 0 or periods == 0:
+        return None
+
+    try:
+        growth_rate = (end_eps / trailing_eps) ** (1 / periods) - 1
+        return growth_rate
+    except Exception:
+        return None
+
+
+def calculate_peg_ratio(pe_ratio, earnings_growth):
+    """Calculate PEG ratio given P/E and earnings growth (decimal)."""
+    if pe_ratio and earnings_growth and earnings_growth > 0:
+        return pe_ratio / (earnings_growth * 100)
     return None
 
-def calculate_graham_number(info):
-    """
-    Calculates Graham Number = Sqrt(22.5 * EPS * BVPS)
-    """
-    eps = info.get('trailingEps')
-    bvps = info.get('bookValue')
-    
-    if eps and bvps and eps > 0 and bvps > 0:
-        graham_number = np.sqrt(22.5 * eps * bvps)
+
+def calculate_peg_value(eps, earnings_growth):
+    """Calculate fair value using PEG=1 with EPS and earnings growth (decimal)."""
+    if eps and earnings_growth and earnings_growth > 0:
+        fair_pe = earnings_growth * 100
+        return eps * fair_pe
+    return None
+
+
+def calculate_graham_number(eps, book_value):
+    """Calculates Graham Number = sqrt(22.5 * EPS * BVPS)."""
+    if eps and book_value and eps > 0 and book_value > 0:
+        graham_number = np.sqrt(22.5 * eps * book_value)
         return graham_number
     return None
 
-def calculate_peter_lynch_value(info):
-    """
-    Peter Lynch Fair Value = PEG of 1 implies P/E = Growth Rate.
-    Fair Value = Expected Growth Rate * EPS.
-    """
-    # Use earningsGrowth or revenueGrowth as proxy if not available, 
-    # but ideally we want long term growth estimate.
-    # yfinance info has 'earningsGrowth' (quarterly). 
-    # Let's try to use a growth estimate if available, or derive from PEG.
-    # PEG = (P/E) / Growth => Growth = (P/E) / PEG
-    
-    pe_ratio = info.get('trailingPE')
-    
-    # Use our robust PEG calculation which handles fallbacks
-    peg_ratio = calculate_peg_valuation(info)
-    
-    eps = info.get('trailingEps')
-    
-    if pe_ratio and peg_ratio and peg_ratio > 0:
-        growth_rate = pe_ratio / peg_ratio
-        # Lynch Fair Value = Growth Rate * EPS
-        if eps:
-            fair_value = growth_rate * eps
-            return fair_value
-            
+
+def calculate_peter_lynch_value(eps, earnings_growth, dividend_yield=None):
+    """Peter Lynch fair value approximation using growth and EPS."""
+    if eps and earnings_growth:
+        growth_component = earnings_growth * 100
+        dividend_boost = (dividend_yield * 100) if dividend_yield else 0
+        return eps * (growth_component + dividend_boost)
+    return None
+
+
+def calculate_mean_reversion_value(eps, target_pe=15.0):
+    """Fair value from mean reversion to target P/E using EPS."""
+    if eps and target_pe:
+        return eps * target_pe
+    return None
+
+
+def calculate_ev_ebitda(enterprise_value, ebitda):
+    """Calculate EV/EBITDA multiple."""
+    if enterprise_value and ebitda:
+        return enterprise_value / ebitda
     return None
 
 def calculate_ddm(info, assumptions):
