@@ -9,6 +9,94 @@ import peer_comparison
 
 st.set_page_config(page_title="Stock Valuation Pro", layout="wide", initial_sidebar_state="expanded")
 
+# Mobile-optimized CSS
+st.markdown("""
+<style>
+    /* Mobile responsive adjustments */
+    @media (max-width: 768px) {
+        /* Reduce padding on mobile */
+        .block-container {
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+        
+        /* Make metrics more compact */
+        [data-testid="stMetricValue"] {
+            font-size: 1.2rem;
+        }
+        
+        [data-testid="stMetricLabel"] {
+            font-size: 0.8rem;
+        }
+        
+        /* Adjust header sizes */
+        h1 {
+            font-size: 1.5rem !important;
+        }
+        
+        h2 {
+            font-size: 1.3rem !important;
+        }
+        
+        h3 {
+            font-size: 1.1rem !important;
+        }
+        
+        /* Make buttons more touch-friendly */
+        .stButton button {
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+            min-height: 44px;  /* iOS recommended touch target */
+        }
+        
+        /* Optimize sidebar for mobile */
+        [data-testid="stSidebar"] {
+            width: 100% !important;
+        }
+        
+        /* Make tabs more touch-friendly */
+        .stTabs [data-baseweb="tab"] {
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+        }
+        
+        /* Improve table readability on mobile */
+        .dataframe {
+            font-size: 0.75rem;
+        }
+        
+        /* Make expanders more touch-friendly */
+        .streamlit-expanderHeader {
+            font-size: 0.95rem;
+            padding: 0.75rem;
+        }
+    }
+    
+    /* General improvements for all devices */
+    .stButton button {
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    /* Improve metric card appearance */
+    [data-testid="stMetricValue"] {
+        font-weight: 600;
+    }
+    
+    /* Better spacing for columns */
+    [data-testid="column"] {
+        padding: 0.25rem;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # Custom CSS for "Commercial Grade" look
 # Removed hardcoded colors to support Dark Mode
 st.markdown("""

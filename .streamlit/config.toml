@@ -15,3 +15,7 @@ gatherUsageStats = false
 [client]
 showErrorDetails = true
 toolbarMode = "minimal"
+
+[ui]
+hideTopBar = false
+hideSidebarNav = false
