@@ -315,7 +315,14 @@ def calculate_overall_score(current_price, dcf_value, peg_ratio, ev_ebitda, pe_r
     if risk < 8:
         risk_factors.append("波動性較高")
     
+    # Provide both legacy and UI-friendly keys so the rendering layer can
+    # consume ``overall_score``/``key_insights`` while existing callers that
+    # reference ``total_score``/``insights`` continue to work. Include the
+    # historical typo ``over_all_score`` as an alias to eliminate KeyErrors
+    # from persisted or cached payloads.
     return {
+        'overall_score': total,
+        'over_all_score': total,
         'total_score': total,
         'rating': rating,
         'recommendation': recommendation,
@@ -327,6 +334,7 @@ def calculate_overall_score(current_price, dcf_value, peg_ratio, ev_ebitda, pe_r
             'momentum': momentum_score,
             'risk': risk
         },
+        'key_insights': insights,
         'insights': insights,
         'risk_factors': risk_factors if risk_factors else ["無重大風險"]
     }
