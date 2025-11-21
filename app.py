@@ -179,6 +179,8 @@ if page == "📊 Stock Analysis":
                 dcf_value=valuations['dcf_value'],
                 peg_ratio=valuations['peg_ratio'],
                 ev_ebitda=valuations['ev_ebitda'],
+                pe_ratio=info.get('trailingPE') or info.get('forwardPE'),
+                ticker=active_ticker,
                 momentum=momentum
             )
             
@@ -304,6 +306,8 @@ if page == "📊 Stock Analysis":
                 ticker=active_ticker,
                 name=info.get('shortName', active_ticker),
                 current_price=current_price,
+                sector=info.get('sector'),
+                industry=info.get('industry'),
                 wacc=wacc,
                 dcf_value=valuations['dcf_value'],
                 peg_ratio=valuations['peg_ratio'],
@@ -339,6 +343,10 @@ elif page == "📋 My Watchlist":
                     st.markdown("### 💰 Current")
                     st.markdown(f"**Price:** ${stock['current_price']:.2f}")
                     st.markdown(f"**WACC:** {stock.get('wacc', 0)*100:.1f}%")
+                    if stock.get('sector'):
+                        st.markdown(f"**Sector:** {stock['sector']}")
+                    if stock.get('industry'):
+                        st.markdown(f"**Industry:** {stock['industry']}")
                     st.markdown(f"**Updated:** {stock.get('last_updated', 'N/A')}")
                 
                 with col2:
