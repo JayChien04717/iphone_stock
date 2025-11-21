@@ -72,3 +72,7 @@ def is_in_watchlist(ticker):
     """Check if a ticker is in the watchlist"""
     watchlist = load_watchlist()
     return any(stock['ticker'] == ticker for stock in watchlist)
+
+def get_watchlist():
+    """Get all stocks in the watchlist (alias for load_watchlist)"""
+    return load_watchlist()
