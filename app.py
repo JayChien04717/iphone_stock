@@ -351,6 +351,10 @@ elif page == "📋 My Watchlist":
                     st.markdown("### 💰 Current")
                     st.markdown(f"**Price:** ${stock['current_price']:.2f}")
                     st.markdown(f"**WACC:** {stock.get('wacc', 0)*100:.1f}%")
+                    if stock.get('sector'):
+                        st.markdown(f"**Sector:** {stock['sector']}")
+                    if stock.get('industry'):
+                        st.markdown(f"**Industry:** {stock['industry']}")
                     st.markdown(f"**Updated:** {stock.get('last_updated', 'N/A')}")
                 
                 with col2:

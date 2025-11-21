@@ -19,8 +19,27 @@ def save_watchlist(watchlist):
     with open(WATCHLIST_FILE, 'w') as f:
         json.dump(watchlist, f, indent=2)
 
-def add_to_watchlist(ticker, name, current_price, sector, industry, wacc=None, dcf_value=None, peg_ratio=None, lynch_value=None, mr_value=None, ev_ebitda=None, momentum=None):
-    """Add a stock to the watchlist with comprehensive data"""
+def add_to_watchlist(
+    ticker,
+    name,
+    current_price,
+    sector=None,
+    industry=None,
+    wacc=None,
+    dcf_value=None,
+    peg_ratio=None,
+    lynch_value=None,
+    mr_value=None,
+    ev_ebitda=None,
+    momentum=None,
+):
+    """Add a stock to the watchlist with comprehensive data.
+
+    Sector and industry are optional because some data providers or tickers
+    may not return those fields. Defaulting to ``None`` prevents runtime
+    errors when callers omit them while still persisting the information
+    when available.
+    """
     watchlist = load_watchlist()
     
     # Check if already in watchlist
