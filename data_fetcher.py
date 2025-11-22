@@ -235,3 +235,77 @@ def get_analyst_targets(info):
         'num_analysts': info.get('numberOfAnalystOpinions'),
         'recommendation': info.get('recommendationKey')
     }
+
+@st.cache_data(ttl=3600)
+def get_quarterly_growth(ticker_symbol):
+    """Calculate quarterly revenue growth (QoQ) from financial statements."""
+    try:
+        ticker = yf.Ticker(ticker_symbol)
+        q_fin = ticker.quarterly_financials
+        if q_fin is not None and not q_fin.empty and 'Total Revenue' in q_fin.index:
+            rev = q_fin.loc['Total Revenue']
+            if len(rev) >= 2:
+                # Calculate QoQ: (Current - Previous) / Previous
+                # Data is usually reverse chronological (newest first)
+                current = rev.iloc[0]
+                previous = rev.iloc[1]
+                if previous != 0:
+                    return (current - previous) / previous
+        return None
+    except Exception as e:
+        print(f"Error calculating QoQ growth for {ticker_symbol}: {e}")
+        return None
+
+
+def calculate_dcf_sensitivity(
+    ticker_symbol,
+    info,
+    base_discount_rate,
+    base_terminal_growth,
+    base_growth_rate,
+    eps_forecast=None,
+    eps_to_fcf_ratio=None,
+    net_margin=None
+):
+    """Generate DCF sensitivity analysis matrix (Discount Rate vs Terminal Growth)."""
+    sensitivity_data = {
+        'discount_rates': [],
+        'terminal_growths': [],
+        'values': []
+    }
+    
+    # Ranges: Discount Rate +/- 2%, Terminal Growth +/- 1%
+    discount_steps = [base_discount_rate - 0.02, base_discount_rate - 0.01, base_discount_rate, base_discount_rate + 0.01, base_discount_rate + 0.02]
+    terminal_steps = [base_terminal_growth - 0.01, base_terminal_growth - 0.005, base_terminal_growth, base_terminal_growth + 0.005, base_terminal_growth + 0.01]
+    
+    # Filter out invalid rates (e.g. negative discount)
+    discount_steps = [r for r in discount_steps if r > 0.01]
+    terminal_steps = [g for g in terminal_steps if g >= 0]
+    
+    sensitivity_data['discount_rates'] = discount_steps
+    sensitivity_data['terminal_growths'] = terminal_steps
+    
+    matrix = []
+    for t_growth in terminal_steps:
+        row = []
+        for d_rate in discount_steps:
+            # Skip invalid combinations where discount <= terminal growth
+            if d_rate <= t_growth:
+                row.append(None)
+                continue
+                
+            val = valuation.calculate_dcf(
+                info.get('freeCashflow'),
+                info.get('sharesOutstanding'),
+                d_rate,
+                base_growth_rate,
+                t_growth,
+                eps_forecast=eps_forecast,
+                eps_to_fcf_ratio=eps_to_fcf_ratio,
+                net_margin=net_margin
+            )
+            row.append(val)
+        matrix.append(row)
+    
+    sensitivity_data['values'] = matrix
+    return sensitivity_data

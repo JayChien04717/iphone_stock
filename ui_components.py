@@ -214,10 +214,40 @@ def render_valuation_comparison_chart(dcf_value, peg_value, lynch_value, mr_valu
             yaxis_title="Price (USD)",
             xaxis_title="Valuation Method",
             showlegend=True,
-            height=400
+            height=400,
+            xaxis=dict(fixedrange=True),
+            yaxis=dict(fixedrange=True)
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, config={'staticPlot': False, 'scrollZoom': False, 'displayModeBar': False})
+
+def render_sensitivity_analysis(sensitivity_data, current_price):
+    """Render DCF sensitivity analysis matrix."""
+    st.markdown("### 🎯 DCF Sensitivity Analysis")
+    st.caption("Fair Value based on different Discount Rates (X-axis) and Terminal Growth Rates (Y-axis)")
+    
+    if not sensitivity_data or not sensitivity_data['values']:
+        st.warning("No sensitivity data available")
+        return
+
+    discount_rates = [f"{r:.1%}" for r in sensitivity_data['discount_rates']]
+    terminal_growths = [f"{g:.1%}" for g in sensitivity_data['terminal_growths']]
+    values = sensitivity_data['values']
+    
+    # Create a DataFrame for display
+    df = pd.DataFrame(values, index=terminal_growths, columns=discount_rates)
+    # Ensure all values are numeric (converts None to NaN)
+    df = df.apply(pd.to_numeric, errors='coerce')
+    
+    # Highlight values > current price
+    def highlight_value(val):
+        if pd.isna(val):
+            return 'background-color: #f0f0f0; color: #a0a0a0'
+        color = '#d4edda' if val > current_price else '#f8d7da' # Greenish if undervalued, Reddish if overvalued
+        text_color = '#155724' if val > current_price else '#721c24'
+        return f'background-color: {color}; color: {text_color}'
+
+    st.dataframe(df.style.format("{:.2f}", na_rep="N/A").map(highlight_value), use_container_width=True)
 
 
 def render_price_chart(hist_data, ticker):

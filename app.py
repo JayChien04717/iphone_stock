@@ -139,7 +139,7 @@ if page == "📊 Stock Analysis":
             st.markdown("---")
             st.subheader("Valuation Parameters")
 
-            wacc = st.number_input("WACC (%)", min_value=0.0, max_value=30.0, value=10.0, step=0.1) / 100
+            wacc = st.number_input("Discount Rate (Required Return) (%)", min_value=0.0, max_value=30.0, value=10.0, step=0.1) / 100
             growth_rate = st.number_input("Growth Rate (%)", min_value=-10.0, max_value=50.0, value=5.0, step=0.5) / 100
             terminal_growth = st.number_input("Terminal Growth (%)", min_value=0.0, max_value=10.0, value=2.5, step=0.1) / 100
 
@@ -182,7 +182,7 @@ if page == "📊 Stock Analysis":
 
             forecast_data = data_fetcher.forecast_eps(
                 active_ticker,
-                years=5,
+                years=3,
                 custom_growth=custom_eps_growth if forecast_mode == "自訂成長率" else None
             )
             eps_to_fcf_input = eps_to_fcf_ratio if eps_to_fcf_ratio > 0 else None

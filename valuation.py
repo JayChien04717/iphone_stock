@@ -14,27 +14,29 @@ def calculate_dcf(
     net_margin=None
 ):
     """
-    Calculates Intrinsic Value using Discounted Cash Flow (DCF).
+    Calculates Intrinsic Value using Discounted Cash Flow to Equity (FCFE).
+    
+    Since yfinance 'freeCashflow' is typically Levered Free Cash Flow (FCFE),
+    we do NOT adjust for Net Debt. The result is directly the Equity Value.
 
     Parameters
     ----------
     free_cash_flow: float
-        Latest free cash flow (total, not per share). If missing, EPS forecast can be
-        converted to FCF using eps_to_fcf_ratio or net_margin.
+        Latest Levered Free Cash Flow (FCFE).
     shares_outstanding: float
         Share count for per-share calculations.
     discount_rate: float
-        Discount rate (as decimal, e.g., 0.1 for 10%).
+        Cost of Equity (Required Return).
     growth_rate: float
-        Growth rate for FCF when using raw FCF input (decimal).
+        Growth rate for FCFE.
     terminal_growth_rate: float
-        Terminal growth rate (decimal).
+        Terminal growth rate.
     eps_forecast: list[float]
-        Forecast EPS per share sequence for the projection horizon.
+        Forecast EPS per share sequence.
     eps_to_fcf_ratio: float
-        Ratio to convert EPS per share to FCF per share.
+        Ratio to convert EPS to FCFE.
     net_margin: float
-        Alternative ratio to approximate FCF per share from EPS (used if eps_to_fcf_ratio is missing).
+        Alternative ratio to approximate FCFE from EPS.
     """
     try:
         if not shares_outstanding:
@@ -63,7 +65,9 @@ def calculate_dcf(
         terminal_value = (last_fcf * (1 + terminal_growth_rate)) / (discount_rate - terminal_growth_rate)
         present_terminal_value = terminal_value / ((1 + discount_rate) ** len(projected_fcf))
 
+        # Total Equity Value (Directly from FCFE)
         equity_value = dcf_value + present_terminal_value
+        
         fair_value = equity_value / shares_outstanding
         return fair_value
     except Exception as e:

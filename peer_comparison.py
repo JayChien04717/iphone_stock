@@ -5,6 +5,7 @@ Compares a stock against its industry peers
 import yfinance as yf
 import pandas as pd
 import numpy as np
+import data_fetcher
 
 def get_industry_peers(ticker_symbol, info, max_peers=10):
     """
@@ -70,20 +71,22 @@ def get_peer_metrics(ticker_symbol):
                 # PEG = P/E / (Earnings Growth * 100)
                 peg_ratio = pe_ratio / (earnings_growth * 100)
         
+        # Get QOQ revenue growth using data_fetcher
+        revenue_growth_quarterly = data_fetcher.get_quarterly_growth(ticker_symbol)
+        
         return {
             'ticker': ticker_symbol,
-            'name': info.get('shortName', ticker_symbol),
             'market_cap': info.get('marketCap'),
             'pe_ratio': info.get('trailingPE'),
             'forward_pe': info.get('forwardPE'),
             'peg_ratio': peg_ratio,
-            'ev_ebitda': info.get('enterpriseToEbitda'),
             'price_to_book': info.get('priceToBook'),
             'price_to_sales': info.get('priceToSalesTrailing12Months'),
-            'roe': info.get('returnOnEquity'),
+            'ev_ebitda': info.get('enterpriseToEbitda'),
             'profit_margin': info.get('profitMargins'),
-            'revenue_growth': info.get('revenueGrowth'),  # YOY (annual)
-            'revenue_growth_quarterly': info.get('revenueQuarterlyGrowth'),  # QOQ (quarterly)
+            'roe': info.get('returnOnEquity'),
+            'revenue_growth': info.get('revenueGrowth'),  # YOY
+            'revenue_growth_quarterly': revenue_growth_quarterly,  # QOQ (calculated)
             'earnings_growth': info.get('earningsGrowth'),
             'earnings_growth_quarterly': info.get('earningsQuarterlyGrowth'),
             'debt_to_equity': info.get('debtToEquity'),
