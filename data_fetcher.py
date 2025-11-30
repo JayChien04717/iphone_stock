@@ -152,7 +152,7 @@ def calculate_all_valuations(
 
     # DCF Valuation
     try:
-        valuations['dcf_value'] = valuation.calculate_dcf(
+        dcf_result = valuation.calculate_dcf(
             info.get('freeCashflow'),
             info.get('sharesOutstanding'),
             wacc,
@@ -162,9 +162,21 @@ def calculate_all_valuations(
             eps_to_fcf_ratio=eps_to_fcf_ratio,
             net_margin=net_margin
         )
+        
+        # Extract values from the new dictionary format
+        if dcf_result and isinstance(dcf_result, dict):
+            valuations['dcf_value'] = dcf_result.get('fair_value')
+            valuations['dcf_buy_price'] = dcf_result.get('buy_price')
+            valuations['dcf_details'] = dcf_result  # Store full details for display
+        else:
+            valuations['dcf_value'] = None
+            valuations['dcf_buy_price'] = None
+            valuations['dcf_details'] = None
     except Exception as e:
         print(f"DCF calculation failed for {ticker_symbol}: {e}")
         valuations['dcf_value'] = None
+        valuations['dcf_buy_price'] = None
+        valuations['dcf_details'] = None
 
     # PEG Ratio (prefer forecast growth and EPS)
     try:

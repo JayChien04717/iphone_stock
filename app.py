@@ -248,12 +248,13 @@ if page == "📊 Stock Analysis":
                 # DCF Fair Value
                 display_metric(c1, "DCF Fair Value", valuations.get('dcf_value'), current_price)
 
-                # Forward P/E
-                forward_pe = info.get('forwardPE')
-                if forward_pe:
-                    c2.metric("Forward P/E", f"{forward_pe:.2f}")
+                # DCF Buy Price (with margin of safety)
+                dcf_buy_price = valuations.get('dcf_buy_price')
+                if dcf_buy_price:
+                    delta = ((dcf_buy_price - current_price) / current_price) * 100
+                    c2.metric("DCF Buy Price (20% MOS)", f"${dcf_buy_price:.2f}", f"{delta:.1f}%")
                 else:
-                    c2.metric("Forward P/E", "N/A")
+                    c2.metric("DCF Buy Price (20% MOS)", "N/A")
 
                 # PEG Ratio
                 if valuations.get('peg_ratio') is not None:
@@ -274,6 +275,55 @@ if page == "📊 Stock Analysis":
 
                 # Mean Reversion (Fair PE)
                 display_metric(c6, "Mean Reversion (Fair PE)", valuations.get('mr_value'), current_price)
+                
+                # Forward P/E (moved to row 4)
+                forward_pe = info.get('forwardPE')
+                if forward_pe:
+                    c7.metric("Forward P/E", f"{forward_pe:.2f}")
+                else:
+                    c7.metric("Forward P/E", "N/A")
+                
+                # DCF Detailed Breakdown
+                dcf_details = valuations.get('dcf_details')
+                if dcf_details:
+                    st.markdown("---")
+                    st.markdown("#### 📊 DCF 估值詳細分析")
+                    
+                    # Show warnings if any
+                    if dcf_details.get('warnings'):
+                        for warning in dcf_details['warnings']:
+                            st.warning(f"⚠️ {warning}")
+                    
+                    # Summary metrics
+                    dcf_col1, dcf_col2, dcf_col3, dcf_col4 = st.columns(4)
+                    with dcf_col1:
+                        st.metric("預測期現值", f"${dcf_details.get('pv_of_fcf', 0)/1e9:.2f}B")
+                    with dcf_col2:
+                        st.metric("終值現值", f"${dcf_details.get('pv_of_terminal', 0)/1e9:.2f}B")
+                    with dcf_col3:
+                        st.metric("股權總價值", f"${dcf_details.get('equity_value', 0)/1e9:.2f}B")
+                    with dcf_col4:
+                        mos = dcf_details.get('margin_of_safety', 0.2) * 100
+                        st.metric("安全邊際", f"{mos:.0f}%")
+                    
+                    # Projected FCF table
+                    with st.expander("📈 查看預測現金流明細"):
+                        projected_fcf = dcf_details.get('projected_fcf', [])
+                        discounted_fcf = dcf_details.get('discounted_fcf', [])
+                        
+                        if projected_fcf and discounted_fcf:
+                            fcf_df = pd.DataFrame({
+                                'Year': [f"Year {i+1}" for i in range(len(projected_fcf))],
+                                'Projected FCF': projected_fcf,
+                                'Discounted FCF': discounted_fcf
+                            })
+                            st.dataframe(
+                                fcf_df.style.format({
+                                    'Projected FCF': '${:,.0f}',
+                                    'Discounted FCF': '${:,.0f}'
+                                }),
+                                use_container_width=True
+                            )
 
                 if forecast_data.get('forecast'):
                     st.markdown("#### 預估 EPS 與目標價")

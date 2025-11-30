@@ -11,14 +11,20 @@ def calculate_dcf(
     terminal_growth_rate,
     eps_forecast=None,
     eps_to_fcf_ratio=None,
-    net_margin=None
+    net_margin=None,
+    projection_years=5,
+    margin_of_safety=0.20
 ):
     """
     Calculates Intrinsic Value using Discounted Cash Flow to Equity (FCFE).
     
-    Since yfinance 'freeCashflow' is typically Levered Free Cash Flow (FCFE),
-    we do NOT adjust for Net Debt. The result is directly the Equity Value.
-
+    Optimizations:
+    1. Standardized projection period (default 5 years)
+    2. Fixed EPS to FCF conversion logic with validation
+    3. Input parameter validation
+    4. Margin of safety calculation
+    5. Detailed output with intermediate values
+    
     Parameters
     ----------
     free_cash_flow: float
@@ -26,53 +32,145 @@ def calculate_dcf(
     shares_outstanding: float
         Share count for per-share calculations.
     discount_rate: float
-        Cost of Equity (Required Return).
+        Cost of Equity (Required Return / WACC).
     growth_rate: float
-        Growth rate for FCFE.
+        Growth rate for FCFE during projection period.
     terminal_growth_rate: float
-        Terminal growth rate.
-    eps_forecast: list[float]
+        Terminal growth rate (perpetuity).
+    eps_forecast: list[dict] or list[float]
         Forecast EPS per share sequence.
     eps_to_fcf_ratio: float
-        Ratio to convert EPS to FCFE.
+        Ratio to convert Net Income to FCFE (typically 0.6-0.9).
     net_margin: float
         Alternative ratio to approximate FCFE from EPS.
+    projection_years: int
+        Number of years to project (default 5).
+    margin_of_safety: float
+        Safety margin percentage (default 0.20 = 20%).
+    
+    Returns
+    -------
+    dict or None
+        Dictionary containing:
+        - fair_value: Fair value per share
+        - buy_price: Fair value with margin of safety applied
+        - projected_fcf: List of projected FCF for each year
+        - pv_of_fcf: Present value of projected FCF
+        - terminal_value: Terminal value at end of projection
+        - pv_of_terminal: Present value of terminal value
+        - equity_value: Total equity value
+        - warnings: List of warning messages
     """
     try:
-        if not shares_outstanding:
-            return None
-
-        conversion_ratio = eps_to_fcf_ratio if eps_to_fcf_ratio is not None else net_margin
-
-        if eps_forecast and conversion_ratio:
-            projected_fcf = [eps * shares_outstanding * conversion_ratio for eps in eps_forecast]
-        elif free_cash_flow is not None:
-            projected_fcf = [free_cash_flow * ((1 + growth_rate) ** (i + 1)) for i in range(5)]
-        else:
-            return None
-
-        if not projected_fcf:
-            return None
-
-        # Discount projected cash flows
-        discounted = [fcf / ((1 + discount_rate) ** (i + 1)) for i, fcf in enumerate(projected_fcf)]
-        dcf_value = sum(discounted)
-
-        # Terminal value using last projected FCF
-        last_fcf = projected_fcf[-1]
-        if discount_rate <= terminal_growth_rate:
-            return None
-        terminal_value = (last_fcf * (1 + terminal_growth_rate)) / (discount_rate - terminal_growth_rate)
-        present_terminal_value = terminal_value / ((1 + discount_rate) ** len(projected_fcf))
-
-        # Total Equity Value (Directly from FCFE)
-        equity_value = dcf_value + present_terminal_value
+        warnings = []
         
+        # ===== 3. INPUT VALIDATION =====
+        if not shares_outstanding or shares_outstanding <= 0:
+            warnings.append("Invalid shares outstanding")
+            return None
+        
+        # Validate discount rate vs terminal growth
+        if discount_rate <= terminal_growth_rate:
+            warnings.append(f"Discount rate ({discount_rate:.2%}) must be > terminal growth ({terminal_growth_rate:.2%})")
+            return None
+        
+        # Validate discount rate is reasonable
+        if discount_rate <= 0 or discount_rate > 0.50:
+            warnings.append(f"Unusual discount rate: {discount_rate:.2%}")
+        
+        # Validate terminal growth rate
+        if terminal_growth_rate < 0 or terminal_growth_rate > 0.05:
+            warnings.append(f"Unusual terminal growth rate: {terminal_growth_rate:.2%} (typical: 2-3%)")
+        
+        # ===== 2. EPS TO FCF CONVERSION WITH VALIDATION =====
+        conversion_ratio = eps_to_fcf_ratio if eps_to_fcf_ratio is not None else net_margin
+        
+        # Validate conversion ratio
+        if conversion_ratio is not None:
+            if conversion_ratio < 0:
+                warnings.append(f"Negative conversion ratio: {conversion_ratio}")
+                conversion_ratio = None
+            elif conversion_ratio > 1.2:
+                warnings.append(f"High conversion ratio: {conversion_ratio:.2f} (typical: 0.6-0.9)")
+        
+        # ===== 1. STANDARDIZED PROJECTION PERIOD =====
+        projected_fcf = []
+        
+        if eps_forecast and conversion_ratio:
+            # Extract EPS values from forecast
+            eps_values = [entry['eps'] if isinstance(entry, dict) else entry for entry in eps_forecast]
+            
+            # Calculate FCF from EPS: EPS × Shares × Conversion Ratio
+            for i in range(projection_years):
+                if i < len(eps_values):
+                    # Use analyst forecast
+                    eps = eps_values[i]
+                else:
+                    # Extend using growth rate if forecast is shorter than projection_years
+                    last_eps = eps_values[-1] if eps_values else 0
+                    years_beyond = i - len(eps_values) + 1
+                    eps = last_eps * ((1 + growth_rate) ** years_beyond)
+                
+                # Convert EPS to total FCF: EPS × Shares × Conversion Ratio
+                fcf = eps * shares_outstanding * conversion_ratio
+                projected_fcf.append(fcf)
+                
+        elif free_cash_flow is not None and free_cash_flow > 0:
+            # Use historical FCF with growth rate
+            for i in range(projection_years):
+                fcf = free_cash_flow * ((1 + growth_rate) ** (i + 1))
+                projected_fcf.append(fcf)
+        else:
+            warnings.append("Insufficient data: need either (EPS forecast + conversion ratio) or historical FCF")
+            return None
+        
+        if not projected_fcf or all(fcf <= 0 for fcf in projected_fcf):
+            warnings.append("All projected FCF values are non-positive")
+            return None
+        
+        # ===== DISCOUNT PROJECTED CASH FLOWS =====
+        discounted_fcf = []
+        for i, fcf in enumerate(projected_fcf):
+            pv = fcf / ((1 + discount_rate) ** (i + 1))
+            discounted_fcf.append(pv)
+        
+        pv_of_fcf = sum(discounted_fcf)
+        
+        # ===== TERMINAL VALUE CALCULATION =====
+        last_fcf = projected_fcf[-1]
+        
+        # Gordon Growth Model: TV = FCF[n+1] / (r - g)
+        terminal_value = (last_fcf * (1 + terminal_growth_rate)) / (discount_rate - terminal_growth_rate)
+        
+        # Discount terminal value to present
+        pv_of_terminal = terminal_value / ((1 + discount_rate) ** projection_years)
+        
+        # ===== EQUITY VALUE AND FAIR VALUE =====
+        equity_value = pv_of_fcf + pv_of_terminal
         fair_value = equity_value / shares_outstanding
-        return fair_value
+        
+        # ===== 4. MARGIN OF SAFETY =====
+        buy_price = fair_value * (1 - margin_of_safety)
+        
+        # ===== 5. DETAILED OUTPUT =====
+        return {
+            'fair_value': fair_value,
+            'buy_price': buy_price,
+            'margin_of_safety': margin_of_safety,
+            'projected_fcf': projected_fcf,
+            'discounted_fcf': discounted_fcf,
+            'pv_of_fcf': pv_of_fcf,
+            'terminal_value': terminal_value,
+            'pv_of_terminal': pv_of_terminal,
+            'equity_value': equity_value,
+            'projection_years': projection_years,
+            'warnings': warnings
+        }
+        
     except Exception as e:
         print(f"DCF Error: {e}")
         return None
+
 
 
 def derive_growth_from_forecast(forecast_series, trailing_eps=None):
