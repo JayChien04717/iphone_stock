@@ -41,11 +41,17 @@ def render_basic_info(info, current_price):
         else:
             st.metric("Market Cap", "N/A")
     with col3:
-        pe_ratio = info.get('trailingPE')
-        if pe_ratio:
-            st.metric("P/E Ratio", f"{pe_ratio:.2f}")
+        trailing_pe = info.get('trailingPE')
+        forward_pe = info.get('forwardPE')
+        
+        if trailing_pe and forward_pe:
+            st.metric("P/E (Trailing / Forward)", f"{trailing_pe:.2f} / {forward_pe:.2f}")
+        elif trailing_pe:
+            st.metric("P/E (Trailing / Forward)", f"{trailing_pe:.2f} / N/A")
+        elif forward_pe:
+            st.metric("P/E (Trailing / Forward)", f"N/A / {forward_pe:.2f}")
         else:
-            st.metric("P/E Ratio", "N/A")
+            st.metric("P/E (Trailing / Forward)", "N/A")
     with col4:
         dividend_yield = info.get('dividendYield')
         if dividend_yield:
