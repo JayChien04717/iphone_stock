@@ -132,7 +132,7 @@ if page == "📊 Stock Analysis":
         st.markdown("---")
         st.subheader("Valuation Parameters")
 
-        wacc = st.number_input("Discount Rate (Required Return) (%)", min_value=0.0, max_value=30.0, value=10.0, step=0.1) / 100
+        wacc = st.number_input("WACC (%)", min_value=0.0, max_value=30.0, value=10.0, step=0.1) / 100
         growth_rate = st.number_input("Growth Rate (%)", min_value=-10.0, max_value=50.0, value=5.0, step=0.5) / 100
         terminal_growth = st.number_input("Terminal Growth (%)", min_value=0.0, max_value=10.0, value=2.5, step=0.1) / 100
 
@@ -235,6 +235,7 @@ if page == "📊 Stock Analysis":
                 c1, c2 = st.columns(2)
                 c3, c4 = st.columns(2)
                 c5, c6 = st.columns(2)
+                c7, c8 = st.columns(2)
 
                 # Helper to display metric with N/A handling
                 def display_metric(col, label, value, current):
@@ -247,25 +248,32 @@ if page == "📊 Stock Analysis":
                 # DCF Fair Value
                 display_metric(c1, "DCF Fair Value", valuations.get('dcf_value'), current_price)
 
+                # Forward P/E
+                forward_pe = info.get('forwardPE')
+                if forward_pe:
+                    c2.metric("Forward P/E", f"{forward_pe:.2f}")
+                else:
+                    c2.metric("Forward P/E", "N/A")
+
                 # PEG Ratio
                 if valuations.get('peg_ratio') is not None:
                     status = "Undervalued" if valuations['peg_ratio'] < 1 else "Overvalued"
-                    c2.metric("PEG Ratio", f"{valuations['peg_ratio']:.2f}", status, delta_color="inverse")
+                    c3.metric("PEG Ratio", f"{valuations['peg_ratio']:.2f}", status, delta_color="inverse")
                 else:
-                    c2.metric("PEG Ratio", "N/A")
+                    c3.metric("PEG Ratio", "N/A")
 
                 # EV/EBITDA
                 if valuations.get('ev_ebitda') is not None:
                     status = "Good" if valuations['ev_ebitda'] < 10 else "High"
-                    c3.metric("EV/EBITDA", f"{valuations['ev_ebitda']:.2f}", status, delta_color="inverse")
+                    c4.metric("EV/EBITDA", f"{valuations['ev_ebitda']:.2f}", status, delta_color="inverse")
                 else:
-                    c3.metric("EV/EBITDA", "N/A")
+                    c4.metric("EV/EBITDA", "N/A")
 
                 # Peter Lynch Value
-                display_metric(c4, "Peter Lynch Value", valuations.get('lynch_value'), current_price)
+                display_metric(c5, "Peter Lynch Value", valuations.get('lynch_value'), current_price)
 
                 # Mean Reversion (Fair PE)
-                display_metric(c5, "Mean Reversion (Fair PE)", valuations.get('mr_value'), current_price)
+                display_metric(c6, "Mean Reversion (Fair PE)", valuations.get('mr_value'), current_price)
 
                 if forecast_data.get('forecast'):
                     st.markdown("#### 預估 EPS 與目標價")
