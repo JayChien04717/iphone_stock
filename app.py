@@ -129,30 +129,29 @@ if page == "📊 Stock Analysis":
         st.subheader("Stock Selection")
         ticker_input = st.text_input("Enter Stock Ticker", value="AAPL").upper()
         
-        # Estimate Inputs button
+        st.markdown("---")
+        st.subheader("Valuation Parameters")
+
+        wacc = st.number_input("Discount Rate (Required Return) (%)", min_value=0.0, max_value=30.0, value=10.0, step=0.1) / 100
+        growth_rate = st.number_input("Growth Rate (%)", min_value=-10.0, max_value=50.0, value=5.0, step=0.5) / 100
+        terminal_growth = st.number_input("Terminal Growth (%)", min_value=0.0, max_value=10.0, value=2.5, step=0.1) / 100
+
+        st.markdown("---")
+        st.subheader("EPS 假設")
+        forecast_mode = st.radio("成長來源", ["分析師預估", "自訂成長率"], index=0)
+        custom_eps_growth = None
+        if forecast_mode == "自訂成長率":
+            custom_eps_growth = st.number_input("自訂 EPS 成長率 (%)", min_value=-20.0, max_value=60.0, value=10.0, step=0.5) / 100
+
+        eps_to_fcf_ratio = st.number_input("EPS → FCF 比率", min_value=0.0, max_value=5.0, value=1.0, step=0.05)
+        net_margin_assumption = st.number_input("或假設淨利率/現金轉化率", min_value=0.0, max_value=1.0, value=0.0, step=0.01)
+        target_pe = st.number_input("均值回歸目標 P/E", min_value=5.0, max_value=40.0, value=15.0, step=0.5)
+        
+        st.markdown("---")
+        # Analyze button at the bottom after all parameters
         if st.button("🔍 Analyze Stock"):
             st.session_state.analyzed = True
             st.session_state.analyzed_ticker = ticker_input
-        
-        # Valuation parameters
-        if st.session_state.analyzed:
-            st.markdown("---")
-            st.subheader("Valuation Parameters")
-
-            wacc = st.number_input("Discount Rate (Required Return) (%)", min_value=0.0, max_value=30.0, value=10.0, step=0.1) / 100
-            growth_rate = st.number_input("Growth Rate (%)", min_value=-10.0, max_value=50.0, value=5.0, step=0.5) / 100
-            terminal_growth = st.number_input("Terminal Growth (%)", min_value=0.0, max_value=10.0, value=2.5, step=0.1) / 100
-
-            st.markdown("---")
-            st.subheader("EPS 假設")
-            forecast_mode = st.radio("成長來源", ["分析師預估", "自訂成長率"], index=0)
-            custom_eps_growth = None
-            if forecast_mode == "自訂成長率":
-                custom_eps_growth = st.number_input("自訂 EPS 成長率 (%)", min_value=-20.0, max_value=60.0, value=10.0, step=0.5) / 100
-
-            eps_to_fcf_ratio = st.number_input("EPS → FCF 比率", min_value=0.0, max_value=5.0, value=1.0, step=0.05)
-            net_margin_assumption = st.number_input("或假設淨利率/現金轉化率", min_value=0.0, max_value=1.0, value=0.0, step=0.01)
-            target_pe = st.number_input("均值回歸目標 P/E", min_value=5.0, max_value=40.0, value=15.0, step=0.5)
     
     # Main content
     if st.session_state.analyzed:
